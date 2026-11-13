@@ -24,15 +24,11 @@ const INITIAL_SEED_INVITE_CODES = [
 ];
 
 async function main() {
-  const connectionString =
-    process.env.APP_DIRECT_DATABASE_URL ||
-    process.env.DIRECT_DATABASE_URL ||
-    process.env.APP_DATABASE_URL ||
-    process.env.DATABASE_URL;
+  const connectionString = process.env.APP_DIRECT_DATABASE_URL;
 
   if (!connectionString) {
     console.error(
-      'ERROR: Set APP_DIRECT_DATABASE_URL, APP_DATABASE_URL, or DATABASE_URL before running db:init.',
+      'ERROR: Set APP_DIRECT_DATABASE_URL before running db:init.',
     );
     process.exit(1);
   }

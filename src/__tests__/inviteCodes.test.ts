@@ -31,13 +31,12 @@ describe('vectorial-invite-codes-api', () => {
     expect(isAppTenantSubdomain(null)).toBe(false);
   });
 
-  it('resolves app tenant database URL with APP_PRISMA_DATABASE_URL priority', () => {
+  it('resolves app tenant database URL with APP_PRISMA_DATABASE_URL priority over APP_DIRECT_DATABASE_URL', () => {
     const url = resolveAppTenantDatabaseUrl({
       PORT: 4050,
       NODE_ENV: 'test',
-      DATABASE_URL: 'postgresql://fallback',
       APP_PRISMA_DATABASE_URL: 'prisma+postgres://accelerate.prisma-data.net/?api_key=abc',
-      APP_DATABASE_URL: 'postgresql://app-db',
+      APP_DIRECT_DATABASE_URL: 'postgresql://direct-app-db',
       CORS_ALLOWED_ORIGINS: 'http://localhost:3000',
       ALLOW_EXTENSION_AND_FIGMA_ORIGINS: true,
       INVITE_CODE_ADMIN_EMAILS: 'harvinder@runvectorial.com',

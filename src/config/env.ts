@@ -8,9 +8,7 @@ import {
 const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(4050),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  DATABASE_URL: z.string().optional(),
   APP_PRISMA_DATABASE_URL: z.string().optional(),
-  APP_DATABASE_URL: z.string().optional(),
   APP_DIRECT_DATABASE_URL: z.string().optional(),
   CORS_ALLOWED_ORIGINS: z
     .string()
@@ -40,17 +38,13 @@ export type AppEnv = z.infer<typeof envSchema> & {
 let cachedEnv: AppEnv | null = null;
 
 /**
- * Resolves the App Tenant database URL using the same priority as vectorial-agent-frontend:
+ * Resolves the App Tenant database URL:
  * 1. APP_PRISMA_DATABASE_URL (Prisma Accelerate, preferred on Vercel)
- * 2. DATABASE_URL
- * 3. APP_DATABASE_URL
- * 4. APP_DIRECT_DATABASE_URL
+ * 2. APP_DIRECT_DATABASE_URL (Direct PostgreSQL connection)
  */
 export function resolveAppTenantDatabaseUrl(raw: z.infer<typeof envSchema>): string {
   const candidates = [
     raw.APP_PRISMA_DATABASE_URL,
-    raw.DATABASE_URL,
-    raw.APP_DATABASE_URL,
     raw.APP_DIRECT_DATABASE_URL,
   ];
   for (const candidate of candidates) {
@@ -59,7 +53,7 @@ export function resolveAppTenantDatabaseUrl(raw: z.infer<typeof envSchema>): str
     }
   }
   throw new Error(
-    'Missing required database URL. Set APP_PRISMA_DATABASE_URL, DATABASE_URL, APP_DATABASE_URL, or APP_DIRECT_DATABASE_URL.',
+    'Missing required database URL. Set APP_PRISMA_DATABASE_URL or APP_DIRECT_DATABASE_URL.',
   );
 }
 
@@ -75,8 +69,8 @@ export function getEnv(): AppEnv {
   }
 
   const resolvedDatabaseUrl = resolveAppTenantDatabaseUrl(parsed.data);
-  // Ensure process.env.DATABASE_URL is populated for PrismaClient
-  process.env.DATABASE_URL = resolvedDatabaseUrl;
+  process.env.APP_PRISMA_DATABASE_URL =
+    process.env.APP_PRISMA_DATABASE_URL || resolvedDatabaseUrl;
 
   cachedEnv = {
     ...parsed.data,
