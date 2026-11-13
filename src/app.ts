@@ -1,7 +1,21 @@
 import express from 'express';
 import cors from 'cors';
-import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
+import {
+  contentSecurityPolicy,
+  crossOriginOpenerPolicy,
+  crossOriginResourcePolicy,
+  originAgentCluster,
+  referrerPolicy,
+  strictTransportSecurity,
+  xContentTypeOptions,
+  xDnsPrefetchControl,
+  xDownloadOptions,
+  xFrameOptions,
+  xPermittedCrossDomainPolicies,
+  xPoweredBy,
+  xXssProtection,
+} from 'helmet';
+import { rateLimit } from 'express-rate-limit';
 import { getEnv } from './config/env.js';
 import { healthRouter } from './routes/health.routes.js';
 import { inviteCodesRouter } from './routes/inviteCodes.routes.js';
@@ -54,11 +68,19 @@ export function createApp() {
 
   app.set('trust proxy', 1);
 
-  app.use(
-    helmet({
-      crossOriginResourcePolicy: { policy: 'cross-origin' },
-    }),
-  );
+  app.use(contentSecurityPolicy());
+  app.use(crossOriginOpenerPolicy());
+  app.use(crossOriginResourcePolicy({ policy: 'cross-origin' }));
+  app.use(originAgentCluster());
+  app.use(referrerPolicy());
+  app.use(strictTransportSecurity());
+  app.use(xContentTypeOptions());
+  app.use(xDnsPrefetchControl());
+  app.use(xDownloadOptions());
+  app.use(xFrameOptions());
+  app.use(xPermittedCrossDomainPolicies());
+  app.use(xPoweredBy());
+  app.use(xXssProtection());
 
   const allowedOrigins = env.CORS_ALLOWED_ORIGINS.split(',')
     .map((origin) => origin.trim())
