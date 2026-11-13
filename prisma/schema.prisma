@@ -1,0 +1,24 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Invite codes for gating application access on the 'app' tenant.
+/// Matches the exact InviteCode table in the app tenant database.
+model InviteCode {
+  id              String    @id @default(uuid())
+  code            String    @unique
+  note            String?
+  claimedByUserId String?   @unique
+  claimedByEmail  String?
+  claimedAt       DateTime?
+  createdByEmail  String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([claimedByUserId])
+}

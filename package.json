@@ -1,0 +1,40 @@
+{
+  "name": "vectorial-invite-codes-api",
+  "version": "1.0.0",
+  "description": "Standalone Vercel-compatible Invite Codes API for Vectorial Platform, Chrome Extension, and Figma Plugin (backed by App Tenant Prisma DB)",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "postinstall": "prisma generate",
+    "build": "prisma generate && tsc -p tsconfig.json",
+    "start": "node dist/src/index.js",
+    "typecheck": "tsc --noEmit",
+    "db:generate": "prisma generate",
+    "db:init": "node scripts/init-invite-codes-db.mjs",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.5.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.1.0",
+    "pg": "^8.13.3",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.13.10",
+    "@types/pg": "^8.11.11",
+    "prisma": "^6.5.0",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.8"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

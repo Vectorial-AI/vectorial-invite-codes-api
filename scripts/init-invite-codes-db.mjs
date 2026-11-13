@@ -1,0 +1,90 @@
+#!/usr/bin/env node
+/**
+ * Idempotent initialization script for the InviteCode table on the 'app' tenant database.
+ * Ensures the "InviteCode" table, unique indexes, and initial seed codes exist.
+ */
+
+import 'dotenv/config';
+import crypto from 'node:crypto';
+import pg from 'pg';
+
+const { Client } = pg;
+
+const INITIAL_SEED_INVITE_CODES = [
+  { code: 'VEC-A7K9-M2P4', note: 'Initial invite code #1' },
+  { code: 'VEC-B3N8-Q5R7', note: 'Initial invite code #2' },
+  { code: 'VEC-C6T4-W9X2', note: 'Initial invite code #3' },
+  { code: 'VEC-D8Y5-J3L6', note: 'Initial invite code #4' },
+  { code: 'VEC-E2H7-K4V9', note: 'Initial invite code #5' },
+  { code: 'VEC-F9P3-Z6M8', note: 'Initial invite code #6' },
+  { code: 'VEC-G4R6-N8Q3', note: 'Initial invite code #7' },
+  { code: 'VEC-H5W2-T7Y4', note: 'Initial invite code #8' },
+  { code: 'VEC-J7L9-X3C5', note: 'Initial invite code #9' },
+  { code: 'VEC-K8V4-M6P2', note: 'Initial invite code #10' },
+];
+
+async function main() {
+  const connectionString =
+    process.env.APP_DIRECT_DATABASE_URL ||
+    process.env.DIRECT_DATABASE_URL ||
+    process.env.APP_DATABASE_URL ||
+    process.env.DATABASE_URL;
+
+  if (!connectionString) {
+    console.error(
+      'ERROR: Set APP_DIRECT_DATABASE_URL, APP_DATABASE_URL, or DATABASE_URL before running db:init.',
+    );
+    process.exit(1);
+  }
+
+  const client = new Client({ connectionString });
+  await client.connect();
+
+  try {
+    console.log('[init-invite-codes-db] Connected to app tenant PostgreSQL. Ensuring InviteCode table...');
+    await client.query('BEGIN');
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS "InviteCode" (
+        "id" TEXT NOT NULL,
+        "code" TEXT NOT NULL,
+        "note" TEXT,
+        "claimedByUserId" TEXT,
+        "claimedByEmail" TEXT,
+        "claimedAt" TIMESTAMP(3),
+        "createdByEmail" TEXT,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "InviteCode_pkey" PRIMARY KEY ("id")
+      );
+    `);
+
+    await client.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS "InviteCode_code_key" ON "InviteCode"("code");
+      CREATE UNIQUE INDEX IF NOT EXISTS "InviteCode_claimedByUserId_key" ON "InviteCode"("claimedByUserId");
+      CREATE INDEX IF NOT EXISTS "InviteCode_claimedByUserId_idx" ON "InviteCode"("claimedByUserId");
+    `);
+
+    for (const item of INITIAL_SEED_INVITE_CODES) {
+      await client.query(
+        `
+        INSERT INTO "InviteCode" ("id", "code", "note", "createdByEmail", "createdAt", "updatedAt")
+        VALUES ($1, $2, $3, $4, NOW(), NOW())
+        ON CONFLICT ("code") DO NOTHING;
+        `,
+        [crypto.randomUUID(), item.code, item.note, 'harvinder@runvectorial.com'],
+      );
+    }
+
+    await client.query('COMMIT');
+    console.log('[init-invite-codes-db] Successfully verified InviteCode table and initial seed codes.');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('[init-invite-codes-db] Failed:', err);
+    process.exit(1);
+  } finally {
+    await client.end();
+  }
+}
+
+main();
