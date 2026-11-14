@@ -31,13 +31,16 @@ export function isAllowedOrigin(
   if (!origin) return true;
   if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) return true;
 
-  // Allow any *.runvectorial.com or *.vercel.app subdomain
+  // Allow any *.runvectorial.com, *.vercel.app, or localhost / *.localhost (e.g. http://app.localhost:3000) origin
   try {
     const url = new URL(origin);
     if (
       url.hostname.endsWith('.runvectorial.com') ||
       url.hostname === 'runvectorial.com' ||
-      url.hostname.endsWith('.vercel.app')
+      url.hostname.endsWith('.vercel.app') ||
+      url.hostname === 'localhost' ||
+      url.hostname.endsWith('.localhost') ||
+      url.hostname === '127.0.0.1'
     ) {
       return true;
     }

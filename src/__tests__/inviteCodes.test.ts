@@ -47,13 +47,18 @@ describe('vectorial-invite-codes-api', () => {
     expect(url).toBe('prisma+postgres://accelerate.prisma-data.net/?api_key=abc');
   });
 
-  it('allows CORS from Chrome Extensions, Figma Plugin iframes ("null" / figma.com), and *.runvectorial.com', () => {
+  it('allows CORS from Chrome Extensions, Figma Plugin iframes ("null" / figma.com), localhost / *.localhost, and *.runvectorial.com', () => {
     const allowedList = ['http://localhost:3000', 'https://app.runvectorial.com'];
     expect(isAllowedOrigin('chrome-extension://abcdefghijklmnop', allowedList, true)).toBe(true);
     expect(isAllowedOrigin('null', allowedList, true)).toBe(true);
     expect(isAllowedOrigin('https://www.figma.com', allowedList, true)).toBe(true);
     expect(isAllowedOrigin('https://app.runvectorial.com', allowedList, true)).toBe(true);
+    expect(isAllowedOrigin('http://app.localhost:3000', allowedList, true)).toBe(true);
+    expect(isAllowedOrigin('http://beta.localhost:3000', allowedList, true)).toBe(true);
+    expect(isAllowedOrigin('http://localhost:3001', allowedList, true)).toBe(true);
+    expect(isAllowedOrigin('http://127.0.0.1:3000', allowedList, true)).toBe(true);
     expect(isAllowedOrigin('https://evil.example.com', allowedList, true)).toBe(false);
+    expect(isAllowedOrigin('https://localhost.evil.example.com', allowedList, true)).toBe(false);
   });
 
   it('sanitizes and truncates invite code notes', () => {

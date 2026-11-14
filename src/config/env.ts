@@ -13,7 +13,7 @@ const envSchema = z.object({
   CORS_ALLOWED_ORIGINS: z
     .string()
     .default(
-      'http://localhost:3000,https://app.runvectorial.com,https://beta.runvectorial.com,https://www.figma.com',
+      'http://localhost:3000,http://app.localhost:3000,http://beta.localhost:3000,https://app.runvectorial.com,https://beta.runvectorial.com,https://www.figma.com',
     ),
   ALLOW_EXTENSION_AND_FIGMA_ORIGINS: z
     .enum(['true', 'false', '1', '0'])

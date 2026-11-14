@@ -67,7 +67,8 @@ export function extractAuthTokenFromRequest(req: Request): string | null {
 }
 
 /**
- * Resolves the tenant subdomain from explicit headers/query or defaults to 'app'
+ * Resolves the tenant subdomain from explicit headers/query, Origin/Referer subdomain
+ * (*.runvectorial.com or *.localhost, e.g. app.localhost:3000), or defaults to 'app'
  * (so standalone clients like Chrome extensions and Figma plugins work out of the box).
  */
 export function resolveTenantSubdomain(req: Request): string {
@@ -78,6 +79,21 @@ export function resolveTenantSubdomain(req: Request): string {
 
   if (explicitHeader) {
     return explicitHeader.toLowerCase();
+  }
+
+  const originOrReferer = req.header('origin')?.trim() || req.header('referer')?.trim();
+  if (originOrReferer) {
+    try {
+      const { hostname } = new URL(originOrReferer);
+      if (hostname.endsWith('.runvectorial.com') || hostname.endsWith('.localhost')) {
+        const subdomain = hostname.split('.')[0]?.trim().toLowerCase();
+        if (subdomain && subdomain !== 'www') {
+          return subdomain;
+        }
+      }
+    } catch {
+      // Ignore invalid URL in Origin/Referer
+    }
   }
 
   return INVITE_CODE_DEFAULT_TENANT;
