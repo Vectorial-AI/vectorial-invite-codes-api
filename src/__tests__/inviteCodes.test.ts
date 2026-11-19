@@ -10,7 +10,7 @@ import {
   resolveAppTenantDatabaseUrl,
 } from '../config/env.js';
 import { isAllowedOrigin } from '../app.js';
-import { sanitizeNote } from '../services/inviteCodeService.js';
+import { parseMaxClaims, sanitizeNote } from '../services/inviteCodeService.js';
 
 describe('vectorial-invite-codes-api', () => {
   it('normalizes and generates VEC-XXXX-XXXX invite codes', () => {
@@ -54,11 +54,13 @@ describe('vectorial-invite-codes-api', () => {
     expect(isAllowedOrigin('https://www.figma.com', allowedList, true)).toBe(true);
     expect(isAllowedOrigin('https://app.runvectorial.com', allowedList, true)).toBe(true);
     expect(isAllowedOrigin('http://app.localhost:3000', allowedList, true)).toBe(true);
+    expect(isAllowedOrigin('http://app.localhost:3000', [], false)).toBe(true);
     expect(isAllowedOrigin('http://beta.localhost:3000', allowedList, true)).toBe(true);
     expect(isAllowedOrigin('http://localhost:3001', allowedList, true)).toBe(true);
     expect(isAllowedOrigin('http://127.0.0.1:3000', allowedList, true)).toBe(true);
     expect(isAllowedOrigin('https://evil.example.com', allowedList, true)).toBe(false);
     expect(isAllowedOrigin('https://localhost.evil.example.com', allowedList, true)).toBe(false);
+    expect(isAllowedOrigin('https://app.localhost.evil.com', allowedList, true)).toBe(false);
   });
 
   it('sanitizes and truncates invite code notes', () => {
@@ -66,5 +68,18 @@ describe('vectorial-invite-codes-api', () => {
     expect(sanitizeNote('   ')).toBeNull();
     expect(sanitizeNote(null)).toBeNull();
     expect(sanitizeNote('x'.repeat(400))?.length).toBe(280);
+  });
+
+  it('parses maxClaims for multi-use invite codes', () => {
+    expect(parseMaxClaims(undefined)).toEqual({ ok: true, value: undefined });
+    expect(parseMaxClaims(null)).toEqual({ ok: true, value: null });
+    expect(parseMaxClaims('unlimited')).toEqual({ ok: true, value: null });
+    expect(parseMaxClaims(25)).toEqual({ ok: true, value: 25 });
+    expect(parseMaxClaims('10')).toEqual({ ok: true, value: 10 });
+    expect(parseMaxClaims(0).ok).toBe(false);
+    expect(parseMaxClaims(-3).ok).toBe(false);
+    expect(parseMaxClaims(2.5).ok).toBe(false);
+    expect(parseMaxClaims('abc').ok).toBe(false);
+    expect(parseMaxClaims('').ok).toBe(false);
   });
 });

@@ -2,6 +2,9 @@
 /**
  * Idempotent initialization script for the InviteCode table on the 'app' tenant database.
  * Ensures the "InviteCode" table, unique indexes, and initial seed codes exist.
+ * Also ensures the multi-use "InviteCodeClaim" table exists and backfills legacy single-claim
+ * data into it. Safe to re-run at any time (e.g. after deploy, to catch claims written by the
+ * previous version during rollout).
  */
 
 import 'dotenv/config';
@@ -60,6 +63,38 @@ async function main() {
       CREATE UNIQUE INDEX IF NOT EXISTS "InviteCode_claimedByUserId_key" ON "InviteCode"("claimedByUserId");
       CREATE INDEX IF NOT EXISTS "InviteCode_claimedByUserId_idx" ON "InviteCode"("claimedByUserId");
     `);
+
+    await client.query(`
+      -- Existing rows are filled with 1 so codes already handed out stay single-use.
+      ALTER TABLE "InviteCode" ADD COLUMN IF NOT EXISTS "maxClaims" INTEGER DEFAULT 1;
+
+      CREATE TABLE IF NOT EXISTS "InviteCodeClaim" (
+        "id" TEXT NOT NULL,
+        "inviteCodeId" TEXT NOT NULL,
+        "userId" TEXT NOT NULL,
+        "email" TEXT,
+        "claimedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "InviteCodeClaim_pkey" PRIMARY KEY ("id"),
+        CONSTRAINT "InviteCodeClaim_inviteCodeId_fkey" FOREIGN KEY ("inviteCodeId")
+          REFERENCES "InviteCode"("id") ON DELETE CASCADE ON UPDATE CASCADE
+      );
+
+      CREATE UNIQUE INDEX IF NOT EXISTS "InviteCodeClaim_userId_key" ON "InviteCodeClaim"("userId");
+      CREATE INDEX IF NOT EXISTS "InviteCodeClaim_inviteCodeId_idx" ON "InviteCodeClaim"("inviteCodeId");
+      CREATE INDEX IF NOT EXISTS "InviteCodeClaim_email_idx" ON "InviteCodeClaim"("email");
+    `);
+
+    // Backfill claims recorded with the legacy single-claim columns.
+    const backfill = await client.query(`
+      INSERT INTO "InviteCodeClaim" ("id", "inviteCodeId", "userId", "email", "claimedAt")
+      SELECT gen_random_uuid()::text, "id", "claimedByUserId", "claimedByEmail", COALESCE("claimedAt", "updatedAt")
+      FROM "InviteCode"
+      WHERE "claimedByUserId" IS NOT NULL
+      ON CONFLICT ("userId") DO NOTHING;
+    `);
+    if (backfill.rowCount) {
+      console.log(`[init-invite-codes-db] Backfilled ${backfill.rowCount} legacy claim(s) into InviteCodeClaim.`);
+    }
 
     for (const item of INITIAL_SEED_INVITE_CODES) {
       await client.query(

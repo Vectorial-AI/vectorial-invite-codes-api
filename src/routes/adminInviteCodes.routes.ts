@@ -6,7 +6,8 @@ import {
   createInviteCodes,
   deleteInviteCode,
   listInviteCodes,
-  updateUnclaimedInviteCode,
+  parseMaxClaims,
+  updateInviteCode,
 } from '../services/inviteCodeService.js';
 
 export const adminInviteCodesRouter = Router();
@@ -15,7 +16,8 @@ adminInviteCodesRouter.use(authenticateRequest, requireAdmin);
 
 /**
  * GET /api/admin/invite-codes (also mounted at /v1/admin/invite-codes)
- * Lists all invite codes and summary stats.
+ * Lists all invite codes (with every account that claimed each one) and summary stats.
+ * A multi-use code can count towards both `available` and `claimed`.
  */
 adminInviteCodesRouter.get('/', async (req, res) => {
   try {
@@ -31,8 +33,9 @@ adminInviteCodesRouter.get('/', async (req, res) => {
     const prisma = getPrismaClient();
     const codes = await listInviteCodes(prisma);
     const total = codes.length;
-    const claimed = codes.filter((item) => Boolean(item.claimedByUserId)).length;
-    const available = total - claimed;
+    const claimed = codes.filter((item) => item.claimCount > 0).length;
+    const available = codes.filter((item) => item.isAvailable).length;
+    const totalClaims = codes.reduce((sum, item) => sum + item.claimCount, 0);
 
     res.status(200).json({
       success: true,
@@ -41,6 +44,8 @@ adminInviteCodesRouter.get('/', async (req, res) => {
         total,
         available,
         claimed,
+        exhausted: total - available,
+        totalClaims,
       },
     });
   } catch (error) {
@@ -55,6 +60,7 @@ adminInviteCodesRouter.get('/', async (req, res) => {
 /**
  * POST /api/admin/invite-codes (also mounted at /v1/admin/invite-codes)
  * Creates 1..50 random invite codes or a custom code.
+ * `maxClaims`: number of accounts that may use each code (default 1), or null for unlimited.
  */
 adminInviteCodesRouter.post('/', async (req, res) => {
   try {
@@ -71,13 +77,24 @@ adminInviteCodesRouter.post('/', async (req, res) => {
       count?: number;
       customCode?: string;
       note?: string;
+      maxClaims?: unknown;
     };
+
+    const maxClaims = parseMaxClaims(body.maxClaims);
+    if (!maxClaims.ok) {
+      res.status(400).json({
+        success: false,
+        error: maxClaims.message,
+      });
+      return;
+    }
 
     const prisma = getPrismaClient();
     const result = await createInviteCodes(prisma, {
       count: body.count,
       customCode: body.customCode,
       note: body.note,
+      maxClaims: maxClaims.value,
       createdByEmail: req.actor?.email,
     });
 
@@ -104,7 +121,8 @@ adminInviteCodesRouter.post('/', async (req, res) => {
 
 /**
  * PATCH /api/admin/invite-codes/:id (also mounted at /v1/admin/invite-codes/:id)
- * Updates an unclaimed invite code's code string or note.
+ * Updates an invite code's note or maxClaims (null = unlimited). The code string can only be
+ * changed while no account has claimed it.
  */
 adminInviteCodesRouter.patch('/:id', async (req, res) => {
   try {
@@ -129,12 +147,24 @@ adminInviteCodesRouter.patch('/:id', async (req, res) => {
     const body = (req.body ?? {}) as {
       code?: string;
       note?: string | null;
+      maxClaims?: unknown;
     };
 
+    const maxClaims = parseMaxClaims(body.maxClaims);
+    if (!maxClaims.ok) {
+      res.status(400).json({
+        success: false,
+        reason: 'invalid_max_claims',
+        error: maxClaims.message,
+      });
+      return;
+    }
+
     const prisma = getPrismaClient();
-    const result = await updateUnclaimedInviteCode(prisma, id, {
+    const result = await updateInviteCode(prisma, id, {
       code: body.code,
       note: body.note,
+      maxClaims: maxClaims.value,
     });
 
     if (!result.ok) {
